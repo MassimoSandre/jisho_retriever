@@ -18,7 +18,12 @@ class JishoRetriever:
     def disable_information(self):
         self.__inf = False
 
-    def generate_info_json_by_level(self, level='*', file_rad="output/kanji_"):
+
+    # ***************************************************************
+    # ============================ KANJI ============================
+    # ***************************************************************
+
+    def generate_kanji_info_json_by_level(self, level='*', file_rad="kanji/kanji_"):
         if self.__inf:
             print(f"Retrieving level N{level} kanji")
         kanji = self.get_kanji_list_by_level(level)
@@ -35,7 +40,7 @@ class JishoRetriever:
         self.__partitioned = True
         self.__count = 1
         for i in range(len(kanji_blocks)):
-            gen = self.generate_info_json_by_kanji_list(kanji_blocks[i])
+            gen = self.generate_kanji_info_json_by_kanji_list(kanji_blocks[i])
             if level != '*':
                 file_name = f"{file_rad}n{level}"
             else:
@@ -92,7 +97,7 @@ class JishoRetriever:
 
 
 
-    def generate_info_json_by_kanji_list(self, kanji_list):
+    def generate_kanji_info_json_by_kanji_list(self, kanji_list):
         output = []
         if not self.__partitioned:
             self.__total = len(kanji_list)
@@ -197,5 +202,82 @@ class JishoRetriever:
             else:
                 print(f"kanji successfully retrieved")
 
-
         return output
+
+
+    # ***************************************************************
+    # ============================ WORDS ============================
+    # ***************************************************************
+
+    def generate_words_info_json_by_level(self, level='*', file_rad="words/words_"):
+        if self.__inf:
+            print(f"Retrieving level N{level} words")
+        
+        r = requests.get(f'https://jisho.org/search/%23words%20%23jlpt-n{level}?page=1')
+        page = 1
+        html = r.content
+        parsed_html = BeautifulSoup(html, features="html.parser")
+
+        total = int(parsed_html.body.find('span', attrs={'class':'result_count'}).text.strip().split(' ')[1])
+        left = total
+
+        current_page = parsed_html.body.find_all('div', attrs={'class':'concept_light clearfix'})
+
+
+        current_block = []
+        i = 0
+        while left > 0:
+            while current_page != [] and len(current_block) < self.__block_size:
+                word = current_page[0].find('span', attrs={'class':'text'}).text.replace('\n','').strip()
+                current_page = current_page[1:]
+                current_block.append(word)
+                left-=1
+
+            if len(current_block) == self.__block_size:
+                if level != '*':
+                    file_name = f"{file_rad}n{level}"
+                else:
+                    file_name = f"{file_rad}"
+                if total > self.__block_size:
+                    file_name = f"{file_name}_{i+1}"
+                    i=i+1
+
+                file_name += ".json"
+
+                file = open(file_name,"w", encoding="utf8")
+                json.dump(current_block, file, indent=4,ensure_ascii=False)
+                file.close()
+                if self.__inf:
+                    print(f"file \"{file_name}\" created")
+                current_block = []
+
+            if current_page == []:
+                if self.__inf:
+                    print(f"page {page} completed - {left} words left")
+                page+=1
+                r = requests.get(f'https://jisho.org/search/%23words%20%23jlpt-n{level}?page={page}')
+                
+                html = r.content
+                parsed_html = BeautifulSoup(html, features="html.parser")
+
+                current_page = parsed_html.body.find_all('div', attrs={'class':'concept_light clearfix'})
+                
+        if current_block != []:
+            if level != '*':
+                file_name = f"{file_rad}n{level}"
+            else:
+                file_name = f"{file_rad}"
+            if total > self.__block_size:
+                file_name = f"{file_name}_{i+1}"
+                i=i+1
+
+            file_name += ".json"
+
+            file = open(file_name,"w", encoding="utf8")
+            json.dump(current_block, file, indent=4,ensure_ascii=False)
+            file.close()
+
+
+            
+        if self.__inf:
+            print(f"{total} words have been successfully retrieved")
