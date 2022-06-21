@@ -18,7 +18,7 @@ class JishoRetriever:
     def disable_information(self):
         self.__inf = False
 
-    def generate_info_json_by_level(self, level:int, file_rad="output/kanji_"):
+    def generate_info_json_by_level(self, level='*', file_rad="output/kanji_"):
         if self.__inf:
             print(f"Retrieving level N{level} kanji")
         kanji = self.get_kanji_list_by_level(level)
@@ -29,17 +29,23 @@ class JishoRetriever:
         kanji_blocks = []
         while len(kanji) > self.__block_size:
             kanji_blocks.append(kanji[:self.__block_size])
-            kanji = kanji[self.__block_size+1:]
+            kanji = kanji[self.__block_size:]
         kanji_blocks.append(kanji)
 
         self.__partitioned = True
         self.__count = 1
         for i in range(len(kanji_blocks)):
             gen = self.generate_info_json_by_kanji_list(kanji_blocks[i])
-            file_name = f"{file_rad}n{level}"
+            if level != '*':
+                file_name = f"{file_rad}n{level}"
+            else:
+                file_name = f"{file_rad}"
             if len(kanji_blocks) > 1:
+                
                 file_name = f"{file_name}_{i+1}"
-            
+
+            file_name += ".json"
+
             file = open(file_name,"w", encoding="utf8")
             json.dump(gen, file, indent=4,ensure_ascii=False)
             file.close()
@@ -51,9 +57,12 @@ class JishoRetriever:
             print(f"{total} kanji have been successfully retrieved")
 
 
-    def get_kanji_list_by_level(self, level:int):
+    def get_kanji_list_by_level(self, level='*'):
         page = 1
-        r = requests.get(f'https://jisho.org/search/%23kanji%20%23jlpt-n{level}?page={page}')
+        if level != '*':
+            r = requests.get(f'https://jisho.org/search/%23kanji%20%23jlpt-n{level}?page={page}')
+        else:
+            r = requests.get(f'https://jisho.org/search/%23kanji%20%23jlpt?page={page}')
         html = r.content
         parsed_html = BeautifulSoup(html, features="html.parser")
 
@@ -71,7 +80,10 @@ class JishoRetriever:
 
 
             page+=1
-            r = requests.get(f'https://jisho.org/search/%23kanji%20%23jlpt-n{level}?page={page}')
+            if level != '*':
+                r = requests.get(f'https://jisho.org/search/%23kanji%20%23jlpt-n{level}?page={page}')
+            else:
+                r = requests.get(f'https://jisho.org/search/%23kanji%20%23jlpt?page={page}')
             html = r.content
             parsed_html = BeautifulSoup(html, features="html.parser")
             span_list = parsed_html.find_all('span', attrs={'class':'character literal japanese_gothic'})
