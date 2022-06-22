@@ -14,4 +14,4 @@ ret = JishoRetriever(information=True,block_size=80,pause=0)
 # json.dump(x, file, indent=4,ensure_ascii=False)
 # file.close()
 
-ret.generate_words_info_json_by_level(5)
+print(ret.get_kanji_info(ret.get_kanji_list_by_level(5)[0]))

@@ -209,6 +209,47 @@ class JishoRetriever:
     # ============================ WORDS ============================
     # ***************************************************************
 
+    def get_word_list_by_level(self, level='*'):
+        if self.__inf:
+            print(f"Retrieving level N{level} words")
+        
+        r = requests.get(f'https://jisho.org/search/%23words%20%23jlpt-n{level}?page=1')
+        page = 1
+        html = r.content
+        parsed_html = BeautifulSoup(html, features="html.parser")
+
+        total = int(parsed_html.body.find('span', attrs={'class':'result_count'}).text.strip().split(' ')[1])
+        left = total
+
+        current_page = parsed_html.body.find_all('div', attrs={'class':'concept_light clearfix'})
+
+
+        words = []
+        i = 0
+        while left > 0:
+            while current_page != []:
+                word = current_page[0].find('span', attrs={'class':'text'}).text.replace('\n','').strip()
+                current_page = current_page[1:]
+                words.append(word)
+                left-=1
+
+            
+            if self.__inf:
+                print(f"page {page} completed - {left} words left")
+            page+=1
+            r = requests.get(f'https://jisho.org/search/%23words%20%23jlpt-n{level}?page={page}')
+            
+            html = r.content
+            parsed_html = BeautifulSoup(html, features="html.parser")
+
+            current_page = parsed_html.body.find_all('div', attrs={'class':'concept_light clearfix'})
+            
+        if self.__inf:
+            print(f"{total} words have been successfully retrieved")
+
+        return words
+
+
     def generate_words_info_json_by_level(self, level='*', file_rad="words/words_"):
         if self.__inf:
             print(f"Retrieving level N{level} words")
